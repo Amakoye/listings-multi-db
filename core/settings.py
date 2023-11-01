@@ -89,12 +89,16 @@ DATABASES = {
     },
     'listings': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'listingz_listingz',
+        'NAME': 'listingz_listings',
         'USER': 'postgres',
         'PASSWORD': 'postgres',
         'HOST': 'localhost'
     }
 }
+
+DATABASE_ROUTERS = [
+    'user.router.AuthRouter'
+]
 
 
 # Password validation
@@ -139,7 +143,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.isAuthenticated',
+        'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -157,3 +161,4 @@ SIMPLE_JWT = {
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+AUTH_USER_MODEL = 'user.UserAccount'
