@@ -1,5 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.shortcuts import render
+from rest_framework.request import Request
+from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions, status
@@ -70,3 +72,21 @@ class RetrieveUserView(APIView):
                 {'error': 'Something went wrong while retrieving user details'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class LoginView(TokenObtainPairView):
+    def post(self, request: Request, *args, **kwargs):
+        email = request.data['email']
+        response = super().post(request, *args, **kwargs)
+
+        if (response.status_code == status.HTTP_200_OK and User.objects.filter(email=email).exists()):
+            user = User.objects.filter(email=email).get(email=email)
+            print(user)
+            response.data['user'] = {
+                'name': user.name,
+                'email': user.email,
+                'is_realtor': user.is_realtor,
+                'is_active': user.is_active,
+            }
+
+        return response
