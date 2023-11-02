@@ -41,7 +41,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'user',
     'listing'
-
 ]
 
 MIDDLEWARE = [
@@ -97,7 +96,7 @@ DATABASES = {
 }
 
 DATABASE_ROUTERS = [
-    'user.router.AuthRouter'
+    'user.router.AuthRouter', 'listing.router.ListingRouter'
 ]
 
 
