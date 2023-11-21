@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, permissions
 from .models import Listing
 from .serializers import ListingSerializer
 
@@ -14,7 +14,7 @@ class ManageListingView(APIView):
             user = request.user
 
             if not user.is_realtor:
-                return Response({'error': 'User does not have necessary permissions for creating this listing data'},
+                return Response({'error': 'User does not have necessary permissions for getting this listing data'},
                                 status=status.HTTP_403_FORBIDDEN)
             slug = request.query_params.get('slug')
 
@@ -141,4 +141,52 @@ class ManageListingView(APIView):
             print(ValueError)
             return Response({
                 'error': 'Something went wrong when creating the listing'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ListingDetailView(APIView):
+    def get(self, request, format=None):
+        try:
+            slug = request.query_params.get('slug')
+            if not slug:
+                return Response({
+                    'error': 'Must provide slug'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            if not Listing.objects.filter(slug=slug, is_published=True).exists():
+                return Response({
+                    'error': 'Published listing with this slug does not exist'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            listing = Listing.objects.get(slug=slug, is_published=True)
+            listing = ListingSerializer(listing)
+
+            return Response({
+                'listing': listing.data
+            }, status=status.HTTP_200_OK)
+        except (ValueError):
+            print(ValueError)
+            return Response({
+                'error': 'Error retrieving listings'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ListingsView(APIView):
+    permission_classes = (permissions.AllowAny, )
+
+    def get(self, request, format=None):
+        try:
+            if not Listing.objects.filter(is_published=True).exists():
+                return Response({
+                    'error': 'No published listings in the database'
+                }, status=status.HTTP_404_NOT_FOUND)
+            listings = Listing.objects.order_by(
+                '-date_created').filter(is_published=True)
+            listings = ListingSerializer(listings, many=True)
+
+            return Response({
+                'listings': listings.data
+            }, status=status.HTTP_200_OK)
+        except:
+            return Response({
+                'error': 'Something went wrong when retrieving listings'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
