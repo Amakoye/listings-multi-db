@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from .models import Listing
 from .serializers import ListingSerializer
+from django.contrib.postgres.search import SearchVector, SearchQuery
 
 # Create your views here.
 
@@ -367,4 +368,106 @@ class ListingsView(APIView):
         except:
             return Response({
                 'error': 'Something went wrong when retrieving listings'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class SearchListingsView(APIView):
+    permission_classes = (permissions.AllowAny, )
+
+    def get(self, request, format=None):
+        try:
+            city = request.query_params.get('city')
+            state = request.query_params.get('state')
+            max_price = request.query_params.get('max_price')
+
+            try:
+                max_price = int(max_price)
+            except:
+                return Response({
+                    'error': 'Max price must be an integer'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            bedrooms = request.query_params.get('bedrooms')
+
+            try:
+                bedrooms = int(bedrooms)
+            except:
+                return Response({
+                    'error': 'Bedrooms must be an integer'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            bathrooms = request.query_params.get('bathrooms')
+
+            try:
+                bathrooms = float(bathrooms)
+            except:
+                return Response({
+                    'error': 'Bathrooms must be a floating point value'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            if bathrooms < 0 or bathrooms >= 10:
+                bathrooms = 1.0
+
+            bathrooms = round(bathrooms, 1)
+
+            sale_type = request.query_params.get('sale_type')
+            if sale_type == 'FOR_SALE':
+                sale_type = 'For Sale'
+            else:
+                sale_type = 'For rent'
+
+            home_type = request.query_params.get('home_type')
+            if home_type == 'HOUSE':
+                home_type = 'House'
+            elif home_type == 'CONDO':
+                home_type = 'Condo'
+            else:
+                home_type = 'Townhouse'
+
+            search = request.query_params.get('search')
+            if not search:
+                return Response({
+                    'error': 'Must pass search criteria'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            vector = SearchVector('title', 'description')
+            query = SearchQuery(search)
+
+            if not Listing.objects.annotate(
+                search=vector
+            ).filter(search=query,
+                     city=city,
+                     state=state,
+                     price__lte=max_price,
+                     bedrooms__gte=bedrooms,
+                     bathrooms__gte=bathrooms,
+                     sale_type=sale_type,
+                     home_type=home_type,
+                     is_published=True,
+                     ).exists():
+                return Response({
+                    'error': 'No listings found with this criteria'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            listings = Listing.objects.annotate(
+                search=vector
+            ).filter(search=query,
+                     city=city,
+                     state=state,
+                     price__lte=max_price,
+                     bedrooms__gte=bedrooms,
+                     bathrooms__gte=bathrooms,
+                     sale_type=sale_type,
+                     home_type=home_type,
+                     is_published=True
+                     )
+            listings = ListingSerializer(listings, many=True)
+
+            return Response({
+                'listings': listings.data
+            }, status=status.HTTP_200_OK)
+        except (ValueError):
+            print(ValueError)
+            return Response({
+                'error': 'Something went wrong when searching for listing'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
